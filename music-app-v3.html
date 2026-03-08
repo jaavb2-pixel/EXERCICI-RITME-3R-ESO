@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Reconeix el Ritme</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vexflow/3.0.9/vexflow-min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,sans-serif;min-height:100vh;background:linear-gradient(135deg,#f0f9ff,#e0f2fe);padding:24px 16px}
+  .screen{display:none;max-width:660px;margin:0 auto}
+  .screen.active{display:block}
+
+  /* LOGIN */
+  .login-box{background:white;border-radius:24px;padding:36px 32px;box-shadow:0 8px 32px #0002;max-width:420px;margin:60px auto 0}
+  .login-box h1{font-size:24px;font-weight:800;color:#0f172a;margin-bottom:4px;text-align:center}
+  .login-box p{color:#64748b;font-size:14px;text-align:center;margin-bottom:24px}
+  label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px}
+  input[type=text]{width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 14px;font-size:15px;margin-bottom:16px;outline:none;transition:border .2s}
+  input[type=text]:focus{border-color:#3b82f6}
+  .tabs{display:flex;gap:8px;margin-bottom:20px}
+  .tab{flex:1;padding:10px 6px;border:2px solid #e2e8f0;border-radius:10px;background:white;font-size:13px;font-weight:600;color:#64748b;cursor:pointer;text-align:center;transition:all .2s}
+  .tab.selected{border-color:#3b82f6;background:#eff6ff;color:#1d4ed8}
+  .btn-primary{width:100%;background:linear-gradient(135deg,#3b82f6,#6366f1);color:white;border:none;border-radius:12px;padding:13px;font-size:16px;font-weight:700;cursor:pointer}
+  .btn-primary:disabled{background:#94a3b8;cursor:not-allowed}
+  .err{color:#dc2626;font-size:13px;margin-top:-10px;margin-bottom:12px;display:none}
+
+  /* APP */
+  #app .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+  #app .title{font-size:20px;font-weight:800;color:#0f172a}
+  #app .subtitle{color:#64748b;font-size:13px;margin-top:2px}
+  .score-box{background:white;border-radius:12px;padding:8px 18px;box-shadow:0 2px 8px #0001;text-align:center}
+  .score-label{font-size:11px;color:#94a3b8;font-weight:600}
+  .score-val{font-size:22px;font-weight:800;color:#3b82f6}
+  .progress{display:flex;gap:6px;margin-bottom:20px}
+  .prog-bar{flex:1;height:6px;border-radius:99px;background:#e2e8f0;transition:background .3s}
+  .prog-bar.done{background:#3b82f6}
+  .prog-bar.current{background:#93c5fd}
+  .fragment-box{background:white;border-radius:18px;padding:18px;margin-bottom:18px;border:1.5px solid #e2e8f0;box-shadow:0 2px 12px #0001}
+  .frag-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .frag-title{font-weight:700;color:#1e293b;font-size:16px}
+  .badge{border-radius:8px;padding:3px 12px;font-size:13px;font-weight:700}
+  .badge-24{background:#dbeafe;color:#1d4ed8}
+  .badge-68{background:#fce7f3;color:#be185d}
+  #notation{width:100%;overflow-x:auto;min-height:110px}
+  #notation svg{display:block}
+  .btn-play{display:block;margin:0 auto 16px;background:linear-gradient(135deg,#3b82f6,#6366f1);color:white;border:none;border-radius:50px;padding:13px 34px;font-size:17px;font-weight:700;cursor:pointer;box-shadow:0 4px 18px #3b82f640}
+  .btn-play:disabled{background:#94a3b8;box-shadow:none;cursor:not-allowed}
+  .answers{display:flex;gap:14px;margin-bottom:20px}
+  .btn-ans{flex:1;background:white;border-radius:14px;padding:16px;font-size:17px;font-weight:700;cursor:pointer}
+  .btn-si{border:2.5px solid #22c55e;color:#16a34a}
+  .btn-no{border:2.5px solid #ef4444;color:#dc2626}
+  .feedback{border-radius:16px;padding:18px 22px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .feedback.ok{background:#f0fdf4;border:2px solid #22c55e}
+  .feedback.ko{background:#fef2f2;border:2px solid #ef4444}
+  .fb-title{font-size:20px;font-weight:800;margin-bottom:4px}
+  .fb-title.ok{color:#16a34a}
+  .fb-title.ko{color:#dc2626}
+  .fb-desc{color:#475569;font-size:14px}
+  .btn-next{background:linear-gradient(135deg,#3b82f6,#6366f1);color:white;border:none;border-radius:30px;padding:10px 22px;font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap}
+  .hint{text-align:center;color:#94a3b8;font-size:13px;margin-bottom:16px}
+  .user-bar{background:white;border-radius:12px;padding:8px 16px;font-size:13px;color:#475569;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 6px #0001}
+  .btn-logout{background:none;border:1px solid #e2e8f0;border-radius:8px;padding:4px 10px;font-size:12px;color:#64748b;cursor:pointer}
+
+  /* FINAL */
+  .final-box{background:white;border-radius:24px;padding:40px 32px;text-align:center;box-shadow:0 8px 32px #0002;max-width:380px;margin:40px auto 0}
+  .final-emoji{font-size:56px;margin-bottom:12px}
+  .final-title{font-size:26px;font-weight:800;color:#0f172a;margin-bottom:8px}
+  .final-sub{color:#64748b;font-size:16px;margin-bottom:16px}
+  .final-score{font-size:52px;font-weight:900;margin-bottom:4px}
+  .final-pct{color:#94a3b8;font-size:15px;margin-bottom:24px}
+  .final-btns{display:flex;gap:12px;justify-content:center}
+  .btn-secondary{background:white;border:2px solid #3b82f6;color:#3b82f6;border-radius:30px;padding:10px 24px;font-size:15px;font-weight:700;cursor:pointer}
+
+  /* ADMIN */
+  .admin-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+  .admin-header h2{font-size:22px;font-weight:800;color:#0f172a}
+  .filter-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+  .filter-btn{padding:6px 14px;border:1.5px solid #e2e8f0;border-radius:20px;background:white;font-size:13px;font-weight:600;color:#64748b;cursor:pointer}
+  .filter-btn.active{border-color:#3b82f6;background:#eff6ff;color:#1d4ed8}
+  table{width:100%;border-collapse:collapse;background:white;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px #0001;font-size:14px}
+  th{background:#f8fafc;padding:10px 14px;text-align:left;font-weight:700;color:#374151;border-bottom:1px solid #e2e8f0}
+  td{padding:10px 14px;border-bottom:1px solid #f1f5f9;color:#1e293b}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#f8fafc}
+  .badge-curs{border-radius:6px;padding:2px 8px;font-size:12px;font-weight:700}
+  .badge-b{background:#dbeafe;color:#1d4ed8}
+  .badge-c{background:#dcfce7;color:#15803d}
+  .badge-d{background:#fce7f3;color:#be185d}
+  .badge-pdc{background:#fef9c3;color:#a16207}
+  .empty{text-align:center;padding:32px;color:#94a3b8;font-size:15px}
+  /* DIÀLEG CONFIRMACIÓ */
+  .dialeg-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:#0005;display:flex;align-items:center;justify-content:center;z-index:1000}
+  .dialeg{background:white;border-radius:18px;padding:28px 28px 20px;max-width:340px;width:90%;box-shadow:0 8px 32px #0003;text-align:center}
+  .dialeg p{color:#1e293b;font-size:16px;margin-bottom:20px;line-height:1.5}
+  .dialeg-btns{display:flex;gap:10px}
+  .btn-cancel{flex:1;background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px;font-size:15px;font-weight:600;color:#64748b;cursor:pointer}
+  .btn-confirm-del{flex:1;background:#ef4444;border:none;border-radius:10px;padding:10px;font-size:15px;font-weight:700;color:white;cursor:pointer}
+  .summary{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+  .stat-card{background:white;border-radius:12px;padding:14px 18px;flex:1;min-width:120px;box-shadow:0 1px 6px #0001;text-align:center}
+  .stat-num{font-size:28px;font-weight:800;color:#3b82f6}
+  .stat-lbl{font-size:12px;color:#94a3b8;font-weight:600;margin-top:2px}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="screen-login" class="screen active">
+  <div class="login-box">
+    <div style="font-size:40px;text-align:center;margin-bottom:12px">🎵</div>
+    <h1>Reconeix el Ritme</h1>
+    <p>Identifica't per començar l'activitat</p>
+    <label>Nom i cognoms</label>
+    <input type="text" id="login-nom" placeholder="Ex: Maria García López" oninput="checkLogin()"/>
+    <label>Selecciona el teu curs</label>
+    <div class="tabs">
+      <div class="tab" id="tab-b" onclick="selCurs('3r ESO B')">3r ESO B</div>
+      <div class="tab" id="tab-pdc" onclick="selCurs('3r ESO B/PDC')">3r ESO B/PDC</div>
+      <div class="tab" id="tab-c" onclick="selCurs('3r ESO C')">3r ESO C</div>
+      <div class="tab" id="tab-d" onclick="selCurs('3r ESO D')">3r ESO D</div>
+    </div>
+    <div class="err" id="login-err">Cal introduir el nom i seleccionar el curs.</div>
+    <button class="btn-primary" id="btn-entrar" onclick="entrar()" disabled>Entrar</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="screen-app" class="screen">
+  <div class="user-bar">
+    <span id="user-bar-txt"></span>
+    <button class="btn-logout" onclick="logout()">Eixir</button>
+  </div>
+  <div class="header">
+    <div>
+      <div class="title">🎵 Reconeix el Ritme</div>
+      <div class="subtitle">Escolta i decideix si el ritme coincideix</div>
+    </div>
+    <div class="score-box">
+      <div class="score-label">PUNTS</div>
+      <div class="score-val" id="score-val">0/6</div>
+    </div>
+  </div>
+  <div class="progress" id="progress"></div>
+  <div class="fragment-box">
+    <div class="frag-header">
+      <div class="frag-title" id="frag-title">Fragment 1</div>
+      <div class="badge" id="frag-badge"></div>
+    </div>
+    <div id="notation"></div>
+  </div>
+  <button class="btn-play" id="btn-play" onclick="playRhythm()">▶️ Escolta el ritme</button>
+  <div class="hint" id="hint">Prem per escoltar abans de respondre</div>
+  <div class="answers" id="answers" style="display:none">
+    <button class="btn-ans btn-si" onclick="answer('si')">✅ Sí, coincideix</button>
+    <button class="btn-ans btn-no" onclick="answer('no')">❌ No, és diferent</button>
+  </div>
+  <div id="feedback" style="display:none"></div>
+</div>
+
+<!-- FINAL -->
+<div id="screen-final" class="screen">
+  <div class="final-box">
+    <div class="final-emoji" id="final-emoji"></div>
+    <div class="final-title">Activitat completada!</div>
+    <div class="final-sub">Has encertat</div>
+    <div class="final-score" id="final-score"></div>
+    <div class="final-pct" id="final-pct"></div>
+    <div class="final-btns">
+      <button class="btn-secondary" onclick="tornarAFer()">Repetir</button>
+      <button class="btn-primary" style="flex:1" onclick="logout()">Eixir</button>
+    </div>
+  </div>
+</div>
+
+<!-- DIÀLEG PERSONALITZAT -->
+<div id="dialeg-overlay" class="dialeg-overlay" style="display:none">
+  <div class="dialeg">
+    <p id="dialeg-msg"></p>
+    <div class="dialeg-btns">
+      <button class="btn-cancel" id="dialeg-cancel">Cancel·lar</button>
+      <button class="btn-confirm-del" id="dialeg-ok">Esborrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN -->
+<div id="screen-admin" class="screen">
+  <div class="admin-header">
+    <h2>📊 Panell d'Administrador</h2>
+    <button class="btn-logout" onclick="logout()">Eixir</button>
+  </div>
+  <div class="summary">
+    <div class="stat-card"><div class="stat-num" id="st-alumnes">0</div><div class="stat-lbl">ALUMNES</div></div>
+    <div class="stat-card"><div class="stat-num" id="st-intents">0</div><div class="stat-lbl">INTENTS</div></div>
+    <div class="stat-card"><div class="stat-num" id="st-mitja">—</div><div class="stat-lbl">MITJANA</div></div>
+  </div>
+  <div class="filter-bar">
+    <button class="filter-btn active" onclick="filtrar('tots',this)">Tots</button>
+    <button class="filter-btn" onclick="filtrar('3r ESO B',this)">3r ESO B</button>
+    <button class="filter-btn" onclick="filtrar('3r ESO B/PDC',this)">3r ESO B/PDC</button>
+    <button class="filter-btn" onclick="filtrar('3r ESO C',this)">3r ESO C</button>
+    <button class="filter-btn" onclick="filtrar('3r ESO D',this)">3r ESO D</button>
+    <button class="filter-btn" id="btn-esborrar-tot" style="margin-left:auto;color:#ef4444;border-color:#fecaca">🗑 Esborrar tot</button>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Nom</th>
+        <th>Curs</th>
+        <th>Millor puntuació</th>
+        <th>Intents</th>
+        <th>Últim intent</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="admin-tbody"></tbody>
+  </table>
+</div>
+
+<script>
+const VF = Vex.Flow;
+const ADMIN_NOM = "Josep Antoni Alberola Verdú"; // ← CANVIA AÇÒ pel teu nom i cognom exactes
+
+// ─── CONFIGURACIÓ GOOGLE SHEETS ──────────────────────────────────────────────
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzTFGKPfdB6IyMF_S4Veg-R2VvrQwTM7_v_ZxqQCa8abkxqUz3KvA3L8C-w0Tj4kZpN3w/exec";
+
+async function saveResultat(nom, curs, punts, total){
+  const params = new URLSearchParams({
+    nom, curs,
+    punts: String(punts),
+    total: String(total),
+    data: new Date().toISOString()
+  });
+  try {
+    await fetch(SCRIPT_URL + "?" + params.toString(), {
+      method: "GET",
+      mode: "no-cors"
+    });
+  } catch(e){ console.error("Error guardant resultat:", e); }
+}
+
+async function getResultats(){
+  try {
+    const res = await fetch(SCRIPT_URL + "&get=1&t=" + Date.now());
+    return await res.json();
+  } catch(e){ console.error("Error carregant resultats:", e); return []; }
+}
+
+// ─── LOGIN ────────────────────────────────────────────────────────────────────
+let cursSeleccionat = "";
+let usuariActual = "", cursActual = "";
+
+function selCurs(c){
+  cursSeleccionat = c;
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("selected"));
+  const map = {"3r ESO B":"tab-b","3r ESO B/PDC":"tab-pdc","3r ESO C":"tab-c","3r ESO D":"tab-d"};
+  document.getElementById(map[c]).classList.add("selected");
+  checkLogin();
+}
+
+function checkLogin(){
+  const nom = document.getElementById("login-nom").value.trim();
+  const esAdmin = nom.toLowerCase() === ADMIN_NOM.toLowerCase();
+  document.getElementById("btn-entrar").disabled = !(nom.length >= 3 && (cursSeleccionat || esAdmin));
+}
+
+function entrar(){
+  const nom = document.getElementById("login-nom").value.trim();
+  if(!nom) return;
+
+  // Comprova si és administrador
+  if(nom.toLowerCase() === ADMIN_NOM.toLowerCase()){
+    mostrarPantalla("admin");
+    renderAdmin("tots");
+    return;
+  }
+
+  if(!cursSeleccionat) return;
+
+  usuariActual = nom;
+  cursActual = cursSeleccionat;
+  document.getElementById("user-bar-txt").textContent = `👤 ${nom}  ·  ${cursSeleccionat}`;
+  mostrarPantalla("app");
+  FRAGMENTS = generaTotsFragments();
+  idx=0; punts=0;
+  nouFragment();
+}
+
+function logout(){
+  usuariActual=""; cursActual="";
+  document.getElementById("login-nom").value="";
+  cursSeleccionat="";
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("selected"));
+  document.getElementById("btn-entrar").disabled=true;
+  mostrarPantalla("login");
+}
+
+function mostrarPantalla(id){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  document.getElementById("screen-"+id).classList.add("active");
+}
+
+// ─── PATRONS PER TEMPS ───────────────────────────────────────────────────────
+const TEMPS_24 = [
+  { notes:[{d:"q",cx:2}] },
+  { notes:[{d:"8",cx:1},{d:"8",cx:1}],                                          beam:true },
+  { notes:[{d:"8",cx:1},{d:"16",cx:.5},{d:"16",cx:.5}],                         beam:true },
+  { notes:[{d:"16",cx:.5},{d:"16",cx:.5},{d:"8",cx:1}],                         beam:true },
+  { notes:[{d:"16",cx:.5},{d:"16",cx:.5},{d:"16",cx:.5},{d:"16",cx:.5}],        beam:true },
+  { notes:[{d:"q",cx:2,r:true}] },
+  { notes:[{d:"8",cx:1,r:true},{d:"8",cx:1}],                                   beam:true },
+  { notes:[{d:"8",cx:1},{d:"8",cx:1,r:true}],                                   beam:true },
+];
+
+const TEMPS_68 = [
+  { notes:[{d:"qd",cx:3}] },
+  { notes:[{d:"8",cx:1},{d:"8",cx:1},{d:"8",cx:1}],                             beam:true },
+  { notes:[{d:"q",cx:2},{d:"8",cx:1}] },
+  { notes:[{d:"8",cx:1},{d:"q",cx:2}] },
+  { notes:[{d:"8",cx:1},{d:"16",cx:.5},{d:"16",cx:.5},{d:"8",cx:1}],            beam:true },
+  { notes:[{d:"16",cx:.5},{d:"16",cx:.5},{d:"8",cx:1},{d:"8",cx:1}],            beam:true },
+  { notes:[{d:"8",cx:1},{d:"8",cx:1},{d:"16",cx:.5},{d:"16",cx:.5}],            beam:true },
+];
+
+function rnd(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+function generaCompas(tipus){
+  const pool = tipus==="2/4" ? TEMPS_24 : TEMPS_68;
+  return [ rnd(pool), rnd(pool) ];
+}
+
+function generaFragment(id, tipus){
+  let compassos;
+  do {
+    compassos = [generaCompas(tipus), generaCompas(tipus), generaCompas(tipus)];
+  } while(
+    JSON.stringify(compassos[0])===JSON.stringify(compassos[1]) &&
+    JSON.stringify(compassos[1])===JSON.stringify(compassos[2])
+  );
+  return { id, label:`Fragment ${id}`, tipus, compassos };
+}
+
+function generaFragmentDiferent(orig){
+  let alt;
+  do { alt = generaFragment(0, orig.tipus); }
+  while(JSON.stringify(alt.compassos)===JSON.stringify(orig.compassos));
+  return alt;
+}
+
+function generaTotsFragments(){
+  const f24=[1,2,3].map(i=>generaFragment(i,"2/4"));
+  const f68=[4,5,6].map(i=>generaFragment(i,"6/8"));
+  return [f24[0],f68[0],f24[1],f68[1],f24[2],f68[2]];
+}
+
+let FRAGMENTS=generaTotsFragments();
+let idx=0,punts=0,sonat=false,respost=false,coincideix=false,ritmeAlt=null;
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function makeNote(n){
+  const dur = n.d + (n.r?"r":"");
+  const sn = new VF.StaveNote({ clef:"treble", keys:["b/4"], duration:dur, stem_direction:-1 });
+  if(n.d==="qd") sn.addDot(0);
+  return sn;
+}
+
+function renderNotation(frag){
+  const container=document.getElementById("notation");
+  container.innerHTML="";
+  try {
+    const W=Math.min(container.offsetWidth||620,620);
+    const renderer=new VF.Renderer(container,VF.Renderer.Backends.SVG);
+    renderer.resize(W,115);
+    const ctx=renderer.getContext();
+    const extraW=80, compW=(W-20-extraW)/3;
+    const widths=[extraW+compW,compW,compW];
+    let xPos=10;
+    const staves=[];
+
+    frag.compassos.forEach((temps,ci)=>{
+      const stave=new VF.Stave(xPos,10,widths[ci]);
+      if(ci===0) stave.addClef("treble").addTimeSignature(frag.tipus);
+      if(ci===2) stave.setEndBarType(VF.Barline.type.END);
+      stave.setContext(ctx).draw();
+      staves.push(stave);
+      xPos+=widths[ci];
+    });
+
+    frag.compassos.forEach((tempsArr,ci)=>{
+      const allNotes=[];
+      const beamGroups=[];
+      let noteIdx=0;
+
+      tempsArr.forEach(temps=>{
+        const grupIdx=[];
+        temps.notes.forEach(n=>{
+          allNotes.push(makeNote(n));
+          if(temps.beam && !n.r && (n.d==="8"||n.d==="16")){
+            grupIdx.push(noteIdx);
+          }
+          noteIdx++;
+        });
+        if(grupIdx.length>=2) beamGroups.push(grupIdx);
+      });
+
+      const beams=[];
+      beamGroups.forEach(grup=>{
+        const bNotes=grup.map(i=>allNotes[i]);
+        if(bNotes.length>=2) try{ beams.push(new VF.Beam(bNotes)); }catch(e){}
+      });
+
+      VF.Formatter.FormatAndDraw(ctx,staves[ci],allNotes);
+      beams.forEach(b=>b.setContext(ctx).draw());
+    });
+  } catch(e){
+    console.error(e);
+    document.getElementById("notation").innerHTML=`<p style="color:red;font-size:12px;padding:8px">Error: ${e.message}</p>`;
+  }
+}
+
+// ─── ÀUDIO ────────────────────────────────────────────────────────────────────
+let audioCtx=null;
+function getACtx(){
+  if(!audioCtx||audioCtx.state==="closed") audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==="suspended") audioCtx.resume();
+  return audioCtx;
+}
+
+function playRhythm(){
+  const btn=document.getElementById("btn-play");
+  btn.disabled=true; btn.textContent="⏳ Reproduint...";
+  document.getElementById("hint").style.display="none";
+  const compassos=coincideix?FRAGMENTS[idx].compassos:ritmeAlt;
+  const notes=compassos.flatMap(temps=>temps.flatMap(t=>t.notes));
+  const ctx=getACtx();
+  const bpm=80, cxSeg=(60/bpm)/2;
+  let t=ctx.currentTime+0.1;
+  notes.forEach(n=>{
+    const dur=(n.cx||1)*cxSeg;
+    if(!n.r && isFinite(dur)){
+      const osc=ctx.createOscillator(),gain=ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value=880;
+      gain.gain.setValueAtTime(0.45,t);
+      gain.gain.exponentialRampToValueAtTime(0.001,t+0.06);
+      osc.start(t); osc.stop(t+0.08);
+    }
+    t+=isFinite(dur)?dur:0;
+  });
+  const total=notes.reduce((a,n)=>a+(isFinite(n.cx)?n.cx:0),0)*cxSeg;
+  setTimeout(()=>{
+    sonat=true;
+    btn.disabled=false; btn.textContent="🔁 Torna a escoltar";
+    document.getElementById("answers").style.display="flex";
+  },(total+0.3)*1000);
+}
+
+// ─── LÒGICA APP ───────────────────────────────────────────────────────────────
+function nouFragment(){
+  const frag=FRAGMENTS[idx];
+  coincideix=Math.random()<0.5;
+  ritmeAlt=coincideix?null:generaFragmentDiferent(frag).compassos;
+  sonat=false; respost=false;
+  document.getElementById("frag-title").textContent=frag.label;
+  const badge=document.getElementById("frag-badge");
+  badge.textContent=frag.tipus;
+  badge.className="badge "+(frag.tipus==="2/4"?"badge-24":"badge-68");
+  const btn=document.getElementById("btn-play");
+  btn.disabled=false; btn.textContent="▶️ Escolta el ritme";
+  document.getElementById("answers").style.display="none";
+  document.getElementById("feedback").style.display="none";
+  document.getElementById("hint").style.display="block";
+  updateProgress(); updateScore();
+  renderNotation(frag);
+}
+
+function answer(r){
+  if(!sonat||respost) return;
+  respost=true;
+  document.getElementById("answers").style.display="none";
+  document.getElementById("btn-play").disabled=true;
+  const ok=(r==="si"&&coincideix)||(r==="no"&&!coincideix);
+  if(ok) punts++;
+  updateScore();
+  const fb=document.getElementById("feedback");
+  fb.className="feedback "+(ok?"ok":"ko");
+  fb.innerHTML=`
+    <div>
+      <div class="fb-title ${ok?"ok":"ko"}">${ok?"🎉 Correcte!":"😕 Incorrecte"}</div>
+      <div class="fb-desc">${coincideix?"El ritme sí que coincidía amb el fragment.":"El ritme era diferent al fragment."}</div>
+    </div>
+    <button class="btn-next" onclick="nextFragment()">${idx+1>=FRAGMENTS.length?"Veure resultats":"Següent →"}</button>`;
+  fb.style.display="flex";
+}
+
+function nextFragment(){
+  idx++;
+  if(idx>=FRAGMENTS.length) showFinal();
+  else nouFragment();
+}
+
+async function showFinal(){
+  await saveResultat(usuariActual, cursActual, punts, FRAGMENTS.length);
+  mostrarPantalla("final");
+  const pct=Math.round(punts/FRAGMENTS.length*100);
+  document.getElementById("final-emoji").textContent=pct>=80?"🏆":pct>=50?"👍":"💪";
+  document.getElementById("final-score").textContent=punts+"/"+FRAGMENTS.length;
+  document.getElementById("final-score").style.color=pct>=80?"#16a34a":pct>=50?"#d97706":"#dc2626";
+  document.getElementById("final-pct").textContent=pct+"% de respostes correctes";
+}
+
+function tornarAFer(){
+  FRAGMENTS=generaTotsFragments();
+  idx=0; punts=0;
+  mostrarPantalla("app");
+  nouFragment();
+}
+
+function updateProgress(){
+  document.getElementById("progress").innerHTML=
+    FRAGMENTS.map((_,i)=>`<div class="prog-bar ${i<idx?"done":i===idx?"current":""}"></div>`).join("");
+}
+function updateScore(){ document.getElementById("score-val").textContent=punts+"/"+FRAGMENTS.length; }
+
+// ─── DIÀLEG PERSONALITZAT (sense confirm()) ───────────────────────────────────
+function mostraDialeg(missatge, onOk){
+  document.getElementById("dialeg-msg").textContent = missatge;
+  document.getElementById("dialeg-overlay").style.display = "flex";
+  const btnOk = document.getElementById("dialeg-ok");
+  const btnCancel = document.getElementById("dialeg-cancel");
+  const tanca = () => { document.getElementById("dialeg-overlay").style.display = "none"; };
+  btnOk.onclick = () => { tanca(); onOk(); };
+  btnCancel.onclick = tanca;
+}
+
+// ─── ADMIN ────────────────────────────────────────────────────────────────────
+let filtreActual="tots";
+
+function esborrarTot(){
+  mostraDialeg("Esborrar TOTS els resultats? Aquesta acció no es pot desfer.", async ()=>{
+    // Amb Google Sheets no esborrem remotament, avisem a l'usuari
+    mostraInfo("Per esborrar tots els resultats, ves al Google Sheet i esborra les files manualment.");
+  });
+}
+
+function mostraInfo(msg){
+  document.getElementById("dialeg-msg").textContent = msg;
+  document.getElementById("dialeg-overlay").style.display = "flex";
+  document.getElementById("dialeg-ok").style.display = "none";
+  document.getElementById("dialeg-cancel").textContent = "Entesos";
+  document.getElementById("dialeg-cancel").onclick = ()=>{
+    document.getElementById("dialeg-overlay").style.display = "none";
+    document.getElementById("dialeg-ok").style.display = "block";
+    document.getElementById("dialeg-cancel").textContent = "Cancel·lar";
+  };
+}
+
+async function renderAdmin(filtre){
+  // Mostrar indicador de càrrega
+  document.getElementById("admin-tbody").innerHTML=
+    `<tr><td colspan="6" class="empty">⏳ Carregant resultats...</td></tr>`;
+
+  const res = await getResultats();
+  const filtrats = filtre==="tots" ? res : res.filter(r=>r.curs===filtre);
+
+  const perAlumne={};
+  filtrats.forEach(r=>{
+    const k=r.nom+"||"+r.curs;
+    if(!perAlumne[k]) perAlumne[k]={nom:r.nom,curs:r.curs,millor:0,intents:0,ultima:r.data};
+    perAlumne[k].intents++;
+    if(r.punts>perAlumne[k].millor) perAlumne[k].millor=r.punts;
+    if(r.data>perAlumne[k].ultima) perAlumne[k].ultima=r.data;
+  });
+  const alumnes=Object.values(perAlumne);
+
+  const totalIntents=filtrats.length;
+  const mitja=totalIntents>0?(filtrats.reduce((a,r)=>a+r.punts,0)/totalIntents).toFixed(1):"—";
+  document.getElementById("st-alumnes").textContent=alumnes.length;
+  document.getElementById("st-intents").textContent=totalIntents;
+  document.getElementById("st-mitja").textContent=mitja==="—"?"—":mitja+"/6";
+
+  const badgeCurs={
+    "3r ESO B":"badge-b","3r ESO B/PDC":"badge-pdc",
+    "3r ESO C":"badge-c","3r ESO D":"badge-d"
+  };
+
+  const tbody=document.getElementById("admin-tbody");
+  tbody.innerHTML="";
+
+  if(alumnes.length===0){
+    tbody.innerHTML=`<tr><td colspan="6" class="empty">No hi ha resultats encara.</td></tr>`;
+    return;
+  }
+
+  alumnes.sort((a,b)=>a.curs.localeCompare(b.curs)||a.nom.localeCompare(b.nom));
+
+  alumnes.forEach((a,i)=>{
+    const pct=Math.round(a.millor/6*100);
+    const color=pct>=80?"#16a34a":pct>=50?"#d97706":"#dc2626";
+    const data=new Date(a.ultima).toLocaleDateString("ca-ES",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+
+    const tr=document.createElement("tr");
+    tr.innerHTML=`
+      <td><strong>${a.nom}</strong></td>
+      <td><span class="badge-curs ${badgeCurs[a.curs]||''}">${a.curs}</span></td>
+      <td><strong style="color:${color}">${a.millor}/6</strong> <span style="color:#94a3b8;font-size:12px">(${pct}%)</span></td>
+      <td>${a.intents}</td>
+      <td style="color:#64748b;font-size:13px">${data}</td>
+      <td><button class="btn-del" title="Esborrar">🗑</button></td>
+    `;
+    // Event listener directe, sense onclick en HTML
+    tr.querySelector(".btn-del").addEventListener("click", ()=>{
+      mostraDialeg(`Esborrar tots els resultats de ${a.nom}?`, ()=>{
+        mostraInfo("Per esborrar un alumne, ves al Google Sheet i esborra les seues files manualment.");
+      });
+    });
+    tbody.appendChild(tr);
+  });
+
+
+}
+
+async function filtrar(curs, btn){
+  filtreActual=curs;
+  document.querySelectorAll(".filter-btn").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  await renderAdmin(curs);
+}
+
+window.onload=()=>{
+  document.getElementById("btn-esborrar-tot").addEventListener("click", esborrarTot);
+};
+window.onresize=()=>{ if(idx<FRAGMENTS.length && document.getElementById("screen-app").classList.contains("active")) renderNotation(FRAGMENTS[idx]); };
+</script>
+</body>
+</html>
